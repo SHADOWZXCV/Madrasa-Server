@@ -1,9 +1,17 @@
-const isSignedIn = (req,res,next) => {
-    if(req.isAuthenticated()){
-        return next();
-    } else {
-        return res.status(403).send({ unauthenticated: true });
-    }
-};
+const checkUserAuthentication = (req, res, next) => {
+    if(!req.isAuthenticated())
+        return res.status(401).end();
 
-module.exports = isSignedIn;
+    next();
+}
+const checkSchoolRole = (req, res, next) => {
+    if(!req.user.isSchool)
+        return res.status(401).end();
+
+    return next();
+}
+
+module.exports = {
+    checkSchoolRole, 
+    checkUserAuthentication
+};

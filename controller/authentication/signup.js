@@ -1,33 +1,35 @@
 const passport = require('passport');
-const randtoken = require("rand-token");
 const { userModel } = require('@Models/user');
-const { hash } = require('@Util/password');
-const { sendEmailToken } = require("@Util/email");
 const { validateToken } = require("@Models/user");
-const logger = require('../../util/log');
+const { hash } = require('@Util/password');
+const logger = require('@Util/log');
 
 const handleSignup = (req, res) => {
     const { body } = req;
-    const randToken = randtoken.generate(20);
+//    const numberVerification = randtoken.generate(6, "0123456789");
 
     hash(body.password, (data, salt) => {
         const user = userModel({
-            username: body.username,
+            fname: body.fname,
+            lname: body.lname,
             email: body.email,
+            phone: body.phone,
+            altPhone: body.altPhone,
             pw: data,
             salt,
-            emailVerificationToken: randToken
+            numberVerification
         });
+
         user.save()
         .then(doc => {
             res.status(200).send({ email: doc.email });
-            sendEmailToken(body.email, randToken);
         })
         .catch(_err => res.status(405).send({ error: `This email exists already!` }));
     });
 };
 
-const validateEmail = (req, res, next) => {
+// TODO: change to number verification instead of email
+const validateEmailUser = (req, res, next) => {
     const { body: { email, token }} = req;
 
     return validateToken(email, token, (isValidated) => {
@@ -39,6 +41,7 @@ const validateEmail = (req, res, next) => {
     });
 };
 
+// TODO: change to number verification instead of email
 const signInNewUser = (req, res, next) => passport.authenticate('signup-local',
 (err, user) => {
     if (err) return next(err);
@@ -52,6 +55,6 @@ const signInNewUser = (req, res, next) => passport.authenticate('signup-local',
 
 module.exports = {
     handleSignup,
-    validateEmail,
+    validateEmailUser,
     signInNewUser
 };

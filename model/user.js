@@ -4,51 +4,29 @@ const logger = require('@Util/log');
 
 class DB {
     constructor(){
-        this._connect();
         this.userSchema = this._createInstance();
         this.userModel = this._createModel();
-        this.validateToken = this.validateToken.bind(this);
-    }
-
-    _connect(){
-        mongoose.connect(process.env.DBUri, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-          } ,(err) => err ? logger.fatal(err) : logger.info('db is conntected'));
-    }
-
-    getConnection(){
-        return mongoose.connection;
+        this.makeNewParent = this.makeNewParent.bind(this);
     }
 
     _createInstance(){
-        return mongoose.Schema(USERSCHEMA, { collection: 'users' });
+        return mongoose.Schema(USERSCHEMA, { collection: 'parents' });
     }
 
     _createModel(){
-        return mongoose.model('User', this.userSchema);
+        return mongoose.model('Parent', this.userSchema);
     }
 
-    validateToken(email, token, cb){
-        this.userModel.findOne({ email }, async (err, user) => {
-            if(err)
-                return logger.error(err)
-            if(!user)
-                return cb(false);
+    async makeNewParent(phone, altPhone, verificationCode, childName, childImage) {
+        const child = { childName, childImage };
+        const user = new this.userModel({
+            phone,
+            altPhone,
+            verificationCode,
+            children: [child]
+        });
 
-            const { emailVerificationToken: orgToken } = user;
-            logger.debug(`token sent by user: ${token}, and token in db is: ${orgToken}`);
-            if(!orgToken)
-                return cb(false);
-            if(orgToken === token){
-                await this.userModel.updateOne({ email }, {
-                    $set: {
-                        emailVerificationToken: ''
-                    }
-                });
-                return cb(true);
-            }
-        })
+        return await user.save();
     }
 }
 

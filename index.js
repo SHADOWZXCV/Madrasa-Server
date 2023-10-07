@@ -6,13 +6,15 @@ const cors = require('cors');
 const passport = require('passport');
 const MongoStore = require('connect-mongo');
 const registerRoutes = require('@Route');
-const { userModel, getConnection } = require('@Models/user');
-const { signupLocalStrategy, localStrategy } = require('@Controller/authentication/localStrategy.passport');
+const { getConnection } = require('@Models');
+const { userModel } = require('@Models/user');
+const { schoolModel } = require('@Models/school');
+const { signupLocalStrategy, localStrategy, modLocalStrategy, schoolLocalStrategy } = require('@Controller/authentication/localStrategy.passport');
 const { corsOptions, checkState } = require('./config');
 const morganMiddleware = require('./middleware/morganLogger.middleware');
 const logger = require('@Util/log');
 const app = express();
-
+// TODO: check session differentiation for user roles.
 app.use(cors(corsOptions));
 app.use(
     session({
@@ -32,10 +34,10 @@ app.use(
         // autoRemoveInterval: 1
         // ttl: 1
       }),
-      cookie: {
-        maxAge: 1000 * 60,
-        sameSite: true,
-      }
+      // cookie: {
+      //   maxAge: 1000 * 6,
+      //   sameSite: true,
+      // }
     })
 );
 app.use(morganMiddleware);
@@ -48,13 +50,33 @@ registerRoutes(app);
 
 passport.use('local', localStrategy);
 passport.use('signup-local', signupLocalStrategy);
+passport.use('mod-local', modLocalStrategy);
+passport.use('school-local', schoolLocalStrategy);
 passport.serializeUser((user, done) => {
-    done(null, user.id);
+  // specify type of user, there are currently 3 types: mod, school and parent
+  const modelType = user.constructor.prototype.collection.modelName;
+  logger.debug(`${modelType} account is serializing..`); 
+  done(null, { id: user.id, type: modelType });
 });
-passport.deserializeUser((id, done) => {
-    userModel.findById(id, function(err, user) {
+passport.deserializeUser((data, done) => {
+  const { type, id } = data;
+
+  if(type === 'Parent')
+  {
+    logger.debug('parent account is deserializing..'); 
+     userModel.findById(id, function(err, user) {
         done(err, user);
     });
+  }
+  else if(type === 'School')
+  {
+    logger.debug('school account is deserializing..');
+    schoolModel.findById(id, function(err, user) {
+        done(err, user);
+      });
+  }
+  else 
+    throw Error('not defined user deserialization is denied!');
 });
 
 checkState();
